@@ -1,0 +1,6 @@
+{
+  "name": "PrintJob Tracker",
+  "description": "Printing job tracking app to manage job numbers, quantities, job arrival, die arrival, emboss arrival dates, pending and completed statuses, and quick search.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
