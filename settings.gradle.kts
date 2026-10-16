@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "PrintJob Tracker"
+rootProject.name = "High 5 Packaging"
 
 include(":app")

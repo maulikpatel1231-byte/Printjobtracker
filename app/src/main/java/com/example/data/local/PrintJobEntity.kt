@@ -11,8 +11,10 @@ data class PrintJobEntity(
   val clientName: String = "",
   val quantity: Int = 0,
   val jobArrivedDate: Long = System.currentTimeMillis(),
+  val dieType: String = "REPEAT", // "REPEAT", "NEW", "NOT_REQUIRED"
   val dieArrivedDate: Long? = null,
   val isDieArrived: Boolean = false,
+  val embossType: String = "REPEAT", // "REPEAT", "NEW", "NOT_REQUIRED"
   val embossArrivedDate: Long? = null,
   val isEmbossArrived: Boolean = false,
   val isCompleted: Boolean = false,

@@ -44,9 +44,6 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
   init {
     val database = PrintDatabase.getDatabase(application)
     repository = PrintJobRepository(database.printJobDao())
-    viewModelScope.launch {
-      repository.seedInitialDataIfEmpty()
-    }
   }
 
   val searchQuery = MutableStateFlow("")
@@ -105,8 +102,8 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
       JobStatusFilter.ALL -> result
       JobStatusFilter.PENDING -> result.filter { !it.isCompleted }
       JobStatusFilter.COMPLETED -> result.filter { it.isCompleted }
-      JobStatusFilter.DIE_AWAITED -> result.filter { !it.isCompleted && !it.isDieArrived }
-      JobStatusFilter.EMBOSS_AWAITED -> result.filter { !it.isCompleted && !it.isEmbossArrived }
+      JobStatusFilter.DIE_AWAITED -> result.filter { !it.isCompleted && it.dieType == "NEW" && !it.isDieArrived }
+      JobStatusFilter.EMBOSS_AWAITED -> result.filter { !it.isCompleted && it.embossType == "NEW" && !it.isEmbossArrived }
     }
 
     // Sort
@@ -141,7 +138,6 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
       } else {
         "Job #${job.jobNumber} marked as Pending ⏳"
       }
-      // If currently viewed in detail, update it
       if (selectedJobForDetail.value?.id == job.id) {
         selectedJobForDetail.value = job.copy(isCompleted = willBeCompleted)
       }
@@ -149,6 +145,7 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
   }
 
   fun toggleDieStatus(job: PrintJobEntity) {
+    if (job.dieType != "NEW") return
     viewModelScope.launch {
       repository.toggleDieStatus(job)
       if (selectedJobForDetail.value?.id == job.id) {
@@ -159,6 +156,7 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
   }
 
   fun toggleEmbossStatus(job: PrintJobEntity) {
+    if (job.embossType != "NEW") return
     viewModelScope.launch {
       repository.toggleEmbossStatus(job)
       if (selectedJobForDetail.value?.id == job.id) {
@@ -192,8 +190,10 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
     clientName: String,
     quantity: Int,
     jobArrivedDate: Long,
+    dieType: String,
     isDieArrived: Boolean,
     dieArrivedDate: Long?,
+    embossType: String,
     isEmbossArrived: Boolean,
     embossArrivedDate: Long?,
     isCompleted: Boolean,
@@ -203,16 +203,32 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
   ) {
     viewModelScope.launch {
       val currentEditing = editingJob.value
+      val resolvedDieArrived = when (dieType) {
+        "REPEAT" -> true
+        "NEW" -> isDieArrived
+        else -> false
+      }
+      val resolvedDieDate = if (dieType == "NEW" && isDieArrived) (dieArrivedDate ?: System.currentTimeMillis()) else null
+
+      val resolvedEmbossArrived = when (embossType) {
+        "REPEAT" -> true
+        "NEW" -> isEmbossArrived
+        else -> false
+      }
+      val resolvedEmbossDate = if (embossType == "NEW" && isEmbossArrived) (embossArrivedDate ?: System.currentTimeMillis()) else null
+
       if (currentEditing != null) {
         val updated = currentEditing.copy(
           jobNumber = jobNumber.trim(),
           clientName = clientName.trim(),
           quantity = quantity,
           jobArrivedDate = jobArrivedDate,
-          isDieArrived = isDieArrived,
-          dieArrivedDate = if (isDieArrived) dieArrivedDate ?: System.currentTimeMillis() else null,
-          isEmbossArrived = isEmbossArrived,
-          embossArrivedDate = if (isEmbossArrived) embossArrivedDate ?: System.currentTimeMillis() else null,
+          dieType = dieType,
+          isDieArrived = resolvedDieArrived,
+          dieArrivedDate = resolvedDieDate,
+          embossType = embossType,
+          isEmbossArrived = resolvedEmbossArrived,
+          embossArrivedDate = resolvedEmbossDate,
           isCompleted = isCompleted,
           completedDate = if (isCompleted) (currentEditing.completedDate ?: System.currentTimeMillis()) else null,
           paperDetails = paperDetails.trim(),
@@ -230,10 +246,12 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
           clientName = clientName.trim(),
           quantity = quantity,
           jobArrivedDate = jobArrivedDate,
-          isDieArrived = isDieArrived,
-          dieArrivedDate = if (isDieArrived) dieArrivedDate ?: System.currentTimeMillis() else null,
-          isEmbossArrived = isEmbossArrived,
-          embossArrivedDate = if (isEmbossArrived) embossArrivedDate ?: System.currentTimeMillis() else null,
+          dieType = dieType,
+          isDieArrived = resolvedDieArrived,
+          dieArrivedDate = resolvedDieDate,
+          embossType = embossType,
+          isEmbossArrived = resolvedEmbossArrived,
+          embossArrivedDate = resolvedEmbossDate,
           isCompleted = isCompleted,
           completedDate = if (isCompleted) System.currentTimeMillis() else null,
           paperDetails = paperDetails.trim(),
@@ -241,7 +259,7 @@ class PrintJobViewModel(application: Application) : AndroidViewModel(application
           isUrgent = isUrgent
         )
         repository.insertJob(newJob)
-        snackbarMessage.value = "New Job #${newJob.jobNumber} created!"
+        snackbarMessage.value = "New Job #${newJob.jobNumber} saved!"
       }
       closeAddEditSheet()
     }

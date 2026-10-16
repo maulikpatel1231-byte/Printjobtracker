@@ -19,18 +19,22 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -48,6 +52,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.data.local.PrintJobEntity
+import com.example.ui.theme.StatusSuccess
+import com.example.ui.theme.StatusSuccessContainer
+import com.example.ui.theme.StatusWarning
+import com.example.ui.theme.StatusWarningContainer
 import com.example.util.DateUtils
 import java.util.Calendar
 
@@ -61,8 +69,10 @@ fun AddEditJobDialog(
     clientName: String,
     quantity: Int,
     jobArrivedDate: Long,
+    dieType: String,
     isDieArrived: Boolean,
     dieArrivedDate: Long?,
+    embossType: String,
     isEmbossArrived: Boolean,
     embossArrivedDate: Long?,
     isCompleted: Boolean,
@@ -81,9 +91,13 @@ fun AddEditJobDialog(
   var quantityText by remember { mutableStateOf(initialJob?.quantity?.toString() ?: "1000") }
   var jobArrivedDate by remember { mutableLongStateOf(initialJob?.jobArrivedDate ?: System.currentTimeMillis()) }
 
+  // Die Options: "REPEAT", "NEW", "NOT_REQUIRED"
+  var dieType by remember { mutableStateOf(initialJob?.dieType ?: "REPEAT") }
   var isDieArrived by remember { mutableStateOf(initialJob?.isDieArrived ?: false) }
   var dieArrivedDate by remember { mutableLongStateOf(initialJob?.dieArrivedDate ?: System.currentTimeMillis()) }
 
+  // Emboss Options: "REPEAT", "NEW", "NOT_REQUIRED"
+  var embossType by remember { mutableStateOf(initialJob?.embossType ?: "REPEAT") }
   var isEmbossArrived by remember { mutableStateOf(initialJob?.isEmbossArrived ?: false) }
   var embossArrivedDate by remember { mutableLongStateOf(initialJob?.embossArrivedDate ?: System.currentTimeMillis()) }
 
@@ -138,7 +152,7 @@ fun AddEditJobDialog(
             color = MaterialTheme.colorScheme.onSurface
           )
           Text(
-            text = if (isEditing) "Job #${initialJob?.jobNumber}" else "Fill in the job details",
+            text = if (isEditing) "Job #${initialJob?.jobNumber}" else "Enter job details",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -158,7 +172,7 @@ fun AddEditJobDialog(
           if (it.isNotBlank()) jobNumberError = null
         },
         label = { Text("Job Number *") },
-        placeholder = { Text("e.g. JOB-1045 or 4580") },
+        placeholder = { Text("e.g. 1045 or JOB-202") },
         isError = jobNumberError != null,
         supportingText = {
           if (jobNumberError != null) {
@@ -177,8 +191,8 @@ fun AddEditJobDialog(
       OutlinedTextField(
         value = clientName,
         onValueChange = { clientName = it },
-        label = { Text("Client / Job Description") },
-        placeholder = { Text("e.g. Sweet Box 500g or Wedding Card") },
+        label = { Text("Client / Item Description") },
+        placeholder = { Text("e.g. Sweet Box 1kg, Tea Carton, Flyer") },
         singleLine = true,
         modifier = Modifier
           .fillMaxWidth()
@@ -252,121 +266,289 @@ fun AddEditJobDialog(
         }
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
-      // 2. Die Arrived Section
+      // 2. DIE SECTION: Repeat vs New vs None
       Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         modifier = Modifier.fillMaxWidth()
       ) {
         Column(modifier = Modifier.padding(14.dp)) {
+          Text(
+            text = "Die Option",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+          )
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Chips for Repeat / New / Not Required
           Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
           ) {
-            Column {
-              Text(
-                text = "Die Arrival Status",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+            FilterChip(
+              selected = dieType == "REPEAT",
+              onClick = { dieType = "REPEAT" },
+              label = { Text("Repeat Die") },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
               )
-              Text(
-                text = if (isDieArrived) "Die has arrived at press" else "Die is pending / awaited",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            FilterChip(
+              selected = dieType == "NEW",
+              onClick = { dieType = "NEW" },
+              label = { Text("New Die") },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = StatusWarningContainer,
+                selectedLabelColor = StatusWarning
               )
-            }
-            Switch(
-              checked = isDieArrived,
-              onCheckedChange = { isDieArrived = it }
+            )
+
+            FilterChip(
+              selected = dieType == "NOT_REQUIRED",
+              onClick = { dieType = "NOT_REQUIRED" },
+              label = { Text("No Die") }
             )
           }
 
-          if (isDieArrived) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showDatePicker(dieArrivedDate) { dieArrivedDate = it } }
-                .padding(vertical = 6.dp),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
+          Spacer(modifier = Modifier.height(8.dp))
+
+          when (dieType) {
+            "REPEAT" -> {
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = StatusSuccessContainer.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Text(
+                  text = "✓ Repeat Die: Available in press (No date required)",
+                  style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                  color = StatusSuccess,
+                  modifier = Modifier.padding(10.dp)
+                )
+              }
+            }
+            "NEW" -> {
+              Column(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Column {
+                    Text(
+                      text = "New Die Arrived?",
+                      style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                      text = if (isDieArrived) "Die has arrived" else "Die awaited from vendor",
+                      style = MaterialTheme.typography.bodySmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  }
+                  Switch(
+                    checked = isDieArrived,
+                    onCheckedChange = { isDieArrived = it }
+                  )
+                }
+
+                // If arrived or selecting arrival date
+                Card(
+                  shape = RoundedCornerShape(8.dp),
+                  colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker(dieArrivedDate) { dieArrivedDate = it } }
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column {
+                      Text(
+                        text = if (isDieArrived) "Die Arrived Date" else "Expected / Arrival Date",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      )
+                      Text(
+                        text = DateUtils.formatDate(dieArrivedDate),
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                      )
+                    }
+                    Icon(
+                      imageVector = Icons.Default.CalendarToday,
+                      contentDescription = "Pick Date",
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(20.dp)
+                    )
+                  }
+                }
+              }
+            }
+            "NOT_REQUIRED" -> {
               Text(
-                text = "Die Arrived On: ${DateUtils.formatDate(dieArrivedDate)}",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.primary
-              )
-              Icon(
-                imageVector = Icons.Default.CalendarToday,
-                contentDescription = "Change Date",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                text = "Die cutting is not required for this job.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
         }
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
-      // 3. Emboss Arrived Section
+      // 3. EMBOSS SECTION: Repeat vs New vs None
       Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         modifier = Modifier.fillMaxWidth()
       ) {
         Column(modifier = Modifier.padding(14.dp)) {
+          Text(
+            text = "Emboss Option",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+          )
+          Spacer(modifier = Modifier.height(6.dp))
+
+          // Chips for Repeat / New / Not Required
           Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
           ) {
-            Column {
-              Text(
-                text = "Emboss Block Arrival Status",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+            FilterChip(
+              selected = embossType == "REPEAT",
+              onClick = { embossType = "REPEAT" },
+              label = { Text("Repeat Emboss") },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
               )
-              Text(
-                text = if (isEmbossArrived) "Emboss block has arrived" else "Emboss block is pending / awaited",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            FilterChip(
+              selected = embossType == "NEW",
+              onClick = { embossType = "NEW" },
+              label = { Text("New Emboss") },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = StatusWarningContainer,
+                selectedLabelColor = StatusWarning
               )
-            }
-            Switch(
-              checked = isEmbossArrived,
-              onCheckedChange = { isEmbossArrived = it }
+            )
+
+            FilterChip(
+              selected = embossType == "NOT_REQUIRED",
+              onClick = { embossType = "NOT_REQUIRED" },
+              label = { Text("No Emboss") }
             )
           }
 
-          if (isEmbossArrived) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-              modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showDatePicker(embossArrivedDate) { embossArrivedDate = it } }
-                .padding(vertical = 6.dp),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
+          Spacer(modifier = Modifier.height(8.dp))
+
+          when (embossType) {
+            "REPEAT" -> {
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = StatusSuccessContainer.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Text(
+                  text = "✓ Repeat Emboss: Available in press (No date required)",
+                  style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                  color = StatusSuccess,
+                  modifier = Modifier.padding(10.dp)
+                )
+              }
+            }
+            "NEW" -> {
+              Column(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Column {
+                    Text(
+                      text = "New Emboss Block Arrived?",
+                      style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                      text = if (isEmbossArrived) "Block has arrived" else "Block awaited from vendor",
+                      style = MaterialTheme.typography.bodySmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                  }
+                  Switch(
+                    checked = isEmbossArrived,
+                    onCheckedChange = { isEmbossArrived = it }
+                  )
+                }
+
+                // If arrived or selecting arrival date
+                Card(
+                  shape = RoundedCornerShape(8.dp),
+                  colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker(embossArrivedDate) { embossArrivedDate = it } }
+                ) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Column {
+                      Text(
+                        text = if (isEmbossArrived) "Emboss Arrived Date" else "Expected / Arrival Date",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                      )
+                      Text(
+                        text = DateUtils.formatDate(embossArrivedDate),
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                      )
+                    }
+                    Icon(
+                      imageVector = Icons.Default.CalendarToday,
+                      contentDescription = "Pick Date",
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(20.dp)
+                    )
+                  }
+                }
+              }
+            }
+            "NOT_REQUIRED" -> {
               Text(
-                text = "Emboss Arrived On: ${DateUtils.formatDate(embossArrivedDate)}",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.primary
-              )
-              Icon(
-                imageVector = Icons.Default.CalendarToday,
-                contentDescription = "Change Date",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                text = "Embossing is not required for this job.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
           }
         }
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
       // 4. Job Completion Status Switch
       Card(
@@ -470,8 +652,10 @@ fun AddEditJobDialog(
               clientName,
               parsedQty,
               jobArrivedDate,
+              dieType,
               isDieArrived,
               dieArrivedDate,
+              embossType,
               isEmbossArrived,
               embossArrivedDate,
               isCompleted,

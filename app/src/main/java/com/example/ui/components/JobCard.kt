@@ -179,34 +179,29 @@ fun JobCard(
           }
         }
 
-        // Completion Tick Action Button (Mandatory Requirement)
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(4.dp)
+        // Completion Tick Action Button
+        Surface(
+          modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onToggleComplete)
+            .testTag("tick_complete_button_${job.id}"),
+          shape = CircleShape,
+          color = checkButtonBg,
+          border = if (!job.isCompleted) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+          } else null
         ) {
-          Surface(
-            modifier = Modifier
-              .size(44.dp)
-              .clip(CircleShape)
-              .clickable(onClick = onToggleComplete)
-              .testTag("tick_complete_button_${job.id}"),
-            shape = CircleShape,
-            color = checkButtonBg,
-            border = if (!job.isCompleted) {
-              BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
-            } else null
+          Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(44.dp)
           ) {
-            Box(
-              contentAlignment = Alignment.Center,
-              modifier = Modifier.size(44.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = if (job.isCompleted) "Job Finished" else "Mark Job Finished",
-                tint = checkIconColor,
-                modifier = Modifier.size(24.dp)
-              )
-            }
+            Icon(
+              imageVector = Icons.Default.Check,
+              contentDescription = if (job.isCompleted) "Job Finished" else "Mark Job Finished",
+              tint = checkIconColor,
+              modifier = Modifier.size(24.dp)
+            )
           }
         }
       }
@@ -252,7 +247,7 @@ fun JobCard(
 
       Spacer(modifier = Modifier.height(12.dp))
 
-      // 3 Milestone Dates: Job Arrived, Die Arrived, Emboss Arrived
+      // 3 Milestone Rows: Job Arrived, Die, Emboss
       Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
@@ -288,7 +283,7 @@ fun JobCard(
             )
           }
 
-          // Row 2: Die Arrived Date & Status
+          // Row 2: Die (Repeat vs New with date)
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -301,49 +296,74 @@ fun JobCard(
               Icon(
                 imageVector = Icons.Default.ContentCut,
                 contentDescription = null,
-                tint = if (job.isDieArrived) StatusSuccess else StatusWarning,
+                tint = when {
+                  job.dieType == "REPEAT" -> MaterialTheme.colorScheme.primary
+                  job.isDieArrived -> StatusSuccess
+                  job.dieType == "NEW" -> StatusWarning
+                  else -> MaterialTheme.colorScheme.outline
+                },
                 modifier = Modifier.size(15.dp)
               )
               Text(
-                text = "Die Arrived:",
+                text = "Die:",
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-              if (job.isDieArrived) {
+
+            when (job.dieType) {
+              "REPEAT" -> {
                 Surface(
                   shape = RoundedCornerShape(6.dp),
-                  color = StatusSuccessContainer
+                  color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                   Text(
-                    text = DateUtils.formatDate(job.dieArrivedDate),
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    text = "Repeat (Available)",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = StatusSuccess
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                   )
                 }
-              } else {
-                Surface(
-                  shape = RoundedCornerShape(6.dp),
-                  color = StatusWarningContainer,
-                  modifier = Modifier.clickable(onClick = onToggleDie)
-                ) {
-                  Text(
-                    text = "Awaited (Tap to Arrive)",
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = StatusWarning
-                  )
+              }
+              "NEW" -> {
+                if (job.isDieArrived) {
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = StatusSuccessContainer
+                  ) {
+                    Text(
+                      text = "New (Arrived: ${DateUtils.formatDate(job.dieArrivedDate)})",
+                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                      color = StatusSuccess
+                    )
+                  }
+                } else {
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = StatusWarningContainer,
+                    modifier = Modifier.clickable(onClick = onToggleDie)
+                  ) {
+                    Text(
+                      text = "New (Awaited - Tap Arrived)",
+                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                      color = StatusWarning
+                    )
+                  }
                 }
+              }
+              else -> {
+                Text(
+                  text = "Not Required",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
               }
             }
           }
 
-          // Row 3: Emboss Arrived Date & Status
+          // Row 3: Emboss (Repeat vs New with date)
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -355,47 +375,72 @@ fun JobCard(
             ) {
               Box(
                 modifier = Modifier
-                  .size(15.dp)
+                  .size(14.dp)
                   .background(
-                    if (job.isEmbossArrived) StatusSuccess else StatusWarning,
+                    when {
+                      job.embossType == "REPEAT" -> MaterialTheme.colorScheme.primary
+                      job.isEmbossArrived -> StatusSuccess
+                      job.embossType == "NEW" -> StatusWarning
+                      else -> MaterialTheme.colorScheme.outline
+                    },
                     RoundedCornerShape(3.dp)
                   )
               )
               Text(
-                text = "Emboss Arrived:",
+                text = "Emboss:",
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-              if (job.isEmbossArrived) {
+
+            when (job.embossType) {
+              "REPEAT" -> {
                 Surface(
                   shape = RoundedCornerShape(6.dp),
-                  color = StatusSuccessContainer
+                  color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                   Text(
-                    text = DateUtils.formatDate(job.embossArrivedDate),
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    text = "Repeat (Available)",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = StatusSuccess
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                   )
                 }
-              } else {
-                Surface(
-                  shape = RoundedCornerShape(6.dp),
-                  color = StatusWarningContainer,
-                  modifier = Modifier.clickable(onClick = onToggleEmboss)
-                ) {
-                  Text(
-                    text = "Awaited (Tap to Arrive)",
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = StatusWarning
-                  )
+              }
+              "NEW" -> {
+                if (job.isEmbossArrived) {
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = StatusSuccessContainer
+                  ) {
+                    Text(
+                      text = "New (Arrived: ${DateUtils.formatDate(job.embossArrivedDate)})",
+                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                      color = StatusSuccess
+                    )
+                  }
+                } else {
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = StatusWarningContainer,
+                    modifier = Modifier.clickable(onClick = onToggleEmboss)
+                  ) {
+                    Text(
+                      text = "New (Awaited - Tap Arrived)",
+                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                      style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                      color = StatusWarning
+                    )
+                  }
                 }
+              }
+              else -> {
+                Text(
+                  text = "Not Required",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
               }
             }
           }

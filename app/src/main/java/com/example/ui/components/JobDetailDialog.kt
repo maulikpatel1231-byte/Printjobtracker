@@ -76,22 +76,24 @@ fun JobDetailDialog(
 
   fun shareJobDetails() {
     val text = buildString {
-      appendLine("📋 *PRINTING JOB DETAILS*")
+      appendLine("📋 *HIGH 5 PACKAGING - JOB DETAILS*")
       appendLine("• *Job Number:* #${job.jobNumber}")
       if (job.clientName.isNotBlank()) appendLine("• *Client/Item:* ${job.clientName}")
       appendLine("• *Quantity:* ${DateUtils.formatQuantity(job.quantity)} pcs")
       appendLine("• *Status:* ${if (job.isCompleted) "✅ COMPLETED" else "⏳ PENDING"}")
       appendLine("• *Job Arrived:* ${DateUtils.formatDate(job.jobArrivedDate)}")
-      appendLine(
-        "• *Die Arrived:* ${
-          if (job.isDieArrived) "✅ " + DateUtils.formatDate(job.dieArrivedDate) else "⏳ Pending / Awaited"
-        }"
-      )
-      appendLine(
-        "• *Emboss Arrived:* ${
-          if (job.isEmbossArrived) "✅ " + DateUtils.formatDate(job.embossArrivedDate) else "⏳ Pending / Awaited"
-        }"
-      )
+      val dieText = when (job.dieType) {
+        "REPEAT" -> "Repeat Die (Available in Press)"
+        "NEW" -> if (job.isDieArrived) "New Die - Arrived (${DateUtils.formatDate(job.dieArrivedDate)})" else "New Die - Awaited ⏳"
+        else -> "Not Required"
+      }
+      appendLine("• *Die:* $dieText")
+      val embossText = when (job.embossType) {
+        "REPEAT" -> "Repeat Emboss (Available in Press)"
+        "NEW" -> if (job.isEmbossArrived) "New Emboss - Arrived (${DateUtils.formatDate(job.embossArrivedDate)})" else "New Emboss - Awaited ⏳"
+        else -> "Not Required"
+      }
+      appendLine("• *Emboss:* $embossText")
       if (job.paperDetails.isNotBlank()) appendLine("• *Paper:* ${job.paperDetails}")
       if (job.notes.isNotBlank()) appendLine("• *Notes:* ${job.notes}")
     }
@@ -272,7 +274,7 @@ fun JobDetailDialog(
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // 3 Key Dates Cards
+      // Key Milestones & Tracking
       Text(
         text = "Key Milestones & Tracking",
         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -308,13 +310,13 @@ fun JobDetailDialog(
 
       Spacer(modifier = Modifier.height(8.dp))
 
-      // 2. Die Arrived Date
+      // 2. Die Status Card (Repeat vs New)
       Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
         modifier = Modifier
           .fillMaxWidth()
-          .clickable(onClick = onToggleDie)
+          .clickable(enabled = job.dieType == "NEW", onClick = onToggleDie)
       ) {
         Row(
           modifier = Modifier
@@ -327,28 +329,66 @@ fun JobDetailDialog(
             Icon(
               Icons.Default.ContentCut,
               contentDescription = null,
-              tint = if (job.isDieArrived) StatusSuccess else StatusWarning
+              tint = when {
+                job.dieType == "REPEAT" -> MaterialTheme.colorScheme.primary
+                job.isDieArrived -> StatusSuccess
+                job.dieType == "NEW" -> StatusWarning
+                else -> MaterialTheme.colorScheme.outline
+              }
             )
             Column {
-              Text("Die Arrived Date", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               Text(
-                if (job.isDieArrived) DateUtils.formatDate(job.dieArrivedDate) else "Awaited (Tap to Mark Arrived)",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = if (job.isDieArrived) MaterialTheme.colorScheme.onSurface else StatusWarning
-                )
+                text = "Die Status (${if (job.dieType == "REPEAT") "Repeat Die" else if (job.dieType == "NEW") "New Die" else "None"})",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
+              when (job.dieType) {
+                "REPEAT" -> {
+                  Text(
+                    text = "Repeat Die (Already available - No date needed)",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                  )
+                }
+                "NEW" -> {
+                  Text(
+                    text = if (job.isDieArrived) "Arrived: ${DateUtils.formatDate(job.dieArrivedDate)}" else "Awaited (Tap to Mark Arrived)",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = if (job.isDieArrived) StatusSuccess else StatusWarning
+                    )
+                  )
+                }
+                else -> {
+                  Text(text = "Die Not Required", style = MaterialTheme.typography.bodyMedium)
+                }
+              }
             }
           }
+
           Surface(
             shape = RoundedCornerShape(6.dp),
-            color = if (job.isDieArrived) StatusSuccessContainer else StatusWarningContainer
+            color = when {
+              job.dieType == "REPEAT" -> MaterialTheme.colorScheme.primaryContainer
+              job.isDieArrived -> StatusSuccessContainer
+              job.dieType == "NEW" -> StatusWarningContainer
+              else -> MaterialTheme.colorScheme.surfaceVariant
+            }
           ) {
             Text(
-              if (job.isDieArrived) "Arrived ✓" else "Pending ⏳",
+              text = when {
+                job.dieType == "REPEAT" -> "Ready ✓"
+                job.isDieArrived -> "Arrived ✓"
+                job.dieType == "NEW" -> "Awaited ⏳"
+                else -> "N/A"
+              },
               modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
               style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-              color = if (job.isDieArrived) StatusSuccess else StatusWarning
+              color = when {
+                job.dieType == "REPEAT" -> MaterialTheme.colorScheme.onPrimaryContainer
+                job.isDieArrived -> StatusSuccess
+                job.dieType == "NEW" -> StatusWarning
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+              }
             )
           }
         }
@@ -356,13 +396,13 @@ fun JobDetailDialog(
 
       Spacer(modifier = Modifier.height(8.dp))
 
-      // 3. Emboss Arrived Date
+      // 3. Emboss Status Card (Repeat vs New)
       Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
         modifier = Modifier
           .fillMaxWidth()
-          .clickable(onClick = onToggleEmboss)
+          .clickable(enabled = job.embossType == "NEW", onClick = onToggleEmboss)
       ) {
         Row(
           modifier = Modifier
@@ -375,28 +415,69 @@ fun JobDetailDialog(
             Box(
               modifier = Modifier
                 .size(20.dp)
-                .background(if (job.isEmbossArrived) StatusSuccess else StatusWarning, RoundedCornerShape(4.dp))
+                .background(
+                  when {
+                    job.embossType == "REPEAT" -> MaterialTheme.colorScheme.primary
+                    job.isEmbossArrived -> StatusSuccess
+                    job.embossType == "NEW" -> StatusWarning
+                    else -> MaterialTheme.colorScheme.outline
+                  },
+                  RoundedCornerShape(4.dp)
+                )
             )
             Column {
-              Text("Emboss Arrived Date", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               Text(
-                if (job.isEmbossArrived) DateUtils.formatDate(job.embossArrivedDate) else "Awaited (Tap to Mark Arrived)",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = if (job.isEmbossArrived) MaterialTheme.colorScheme.onSurface else StatusWarning
-                )
+                text = "Emboss Status (${if (job.embossType == "REPEAT") "Repeat Emboss" else if (job.embossType == "NEW") "New Emboss" else "None"})",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
+              when (job.embossType) {
+                "REPEAT" -> {
+                  Text(
+                    text = "Repeat Emboss (Already available - No date needed)",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                  )
+                }
+                "NEW" -> {
+                  Text(
+                    text = if (job.isEmbossArrived) "Arrived: ${DateUtils.formatDate(job.embossArrivedDate)}" else "Awaited (Tap to Mark Arrived)",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      fontWeight = FontWeight.Bold,
+                      color = if (job.isEmbossArrived) StatusSuccess else StatusWarning
+                    )
+                  )
+                }
+                else -> {
+                  Text(text = "Emboss Not Required", style = MaterialTheme.typography.bodyMedium)
+                }
+              }
             }
           }
+
           Surface(
             shape = RoundedCornerShape(6.dp),
-            color = if (job.isEmbossArrived) StatusSuccessContainer else StatusWarningContainer
+            color = when {
+              job.embossType == "REPEAT" -> MaterialTheme.colorScheme.primaryContainer
+              job.isEmbossArrived -> StatusSuccessContainer
+              job.embossType == "NEW" -> StatusWarningContainer
+              else -> MaterialTheme.colorScheme.surfaceVariant
+            }
           ) {
             Text(
-              if (job.isEmbossArrived) "Arrived ✓" else "Pending ⏳",
+              text = when {
+                job.embossType == "REPEAT" -> "Ready ✓"
+                job.isEmbossArrived -> "Arrived ✓"
+                job.embossType == "NEW" -> "Awaited ⏳"
+                else -> "N/A"
+              },
               modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
               style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-              color = if (job.isEmbossArrived) StatusSuccess else StatusWarning
+              color = when {
+                job.embossType == "REPEAT" -> MaterialTheme.colorScheme.onPrimaryContainer
+                job.isEmbossArrived -> StatusSuccess
+                job.embossType == "NEW" -> StatusWarning
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+              }
             )
           }
         }

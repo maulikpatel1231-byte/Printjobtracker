@@ -115,7 +115,7 @@ fun HomeScreen(
   fun sharePendingJobsReport() {
     val pendingList = filteredJobs.filter { !it.isCompleted }
     val text = buildString {
-      appendLine("📢 *PRINTING PRESS PENDING JOBS REPORT*")
+      appendLine("📢 *HIGH 5 PACKAGING - PENDING JOBS REPORT*")
       appendLine("Date: ${DateUtils.formatDate(System.currentTimeMillis())}")
       appendLine("Total Pending: ${stats.pendingJobs} jobs")
       appendLine("-----------------------------")
@@ -126,8 +126,18 @@ fun HomeScreen(
           appendLine("${index + 1}) *#${job.jobNumber}* - ${job.clientName}")
           appendLine("   • Qty: ${DateUtils.formatQuantity(job.quantity)} pcs")
           appendLine("   • Arrived: ${DateUtils.formatDate(job.jobArrivedDate)}")
-          appendLine("   • Die: ${if (job.isDieArrived) "Arrived ✓" else "Awaited ⏳"}")
-          appendLine("   • Emboss: ${if (job.isEmbossArrived) "Arrived ✓" else "Awaited ⏳"}")
+          val dieStatus = when (job.dieType) {
+            "REPEAT" -> "Repeat Die"
+            "NEW" -> if (job.isDieArrived) "New Die - Arrived ✓" else "New Die - Awaited ⏳"
+            else -> "N/A"
+          }
+          val embossStatus = when (job.embossType) {
+            "REPEAT" -> "Repeat Emboss"
+            "NEW" -> if (job.isEmbossArrived) "New Emboss - Arrived ✓" else "New Emboss - Awaited ⏳"
+            else -> "N/A"
+          }
+          appendLine("   • Die: $dieStatus")
+          appendLine("   • Emboss: $embossStatus")
           if (job.notes.isNotBlank()) appendLine("   • Note: ${job.notes}")
           appendLine()
         }
@@ -158,26 +168,25 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
           ) {
             Surface(
-              shape = CircleShape,
-              color = MaterialTheme.colorScheme.primaryContainer,
-              modifier = Modifier.size(40.dp)
+              shape = RoundedCornerShape(8.dp),
+              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+              modifier = Modifier.size(width = 54.dp, height = 36.dp)
             ) {
-              Box(contentAlignment = Alignment.Center) {
-                Icon(
-                  imageVector = Icons.Default.Print,
-                  contentDescription = null,
-                  tint = MaterialTheme.colorScheme.primary,
-                  modifier = Modifier.size(24.dp)
+              Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(2.dp)) {
+                androidx.compose.foundation.Image(
+                  painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_high5_logo),
+                  contentDescription = "High 5 Packaging Logo",
+                  modifier = Modifier.fillMaxSize()
                 )
               }
             }
             Column {
               Text(
-                text = "PrintJob Tracker",
+                text = "High 5 Packaging",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
               )
               Text(
-                text = "Press & Production Log",
+                text = "Production & Job Log",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
@@ -416,15 +425,15 @@ fun HomeScreen(
               }
             }
             Text(
-              text = if (searchQuery.isNotBlank()) "Koi Job nahi mili" else "Koi Job List me nahi hai",
+              text = if (searchQuery.isNotBlank()) "No Jobs Found" else "No Jobs Added Yet",
               style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
               color = MaterialTheme.colorScheme.onSurface
             )
             Text(
               text = if (searchQuery.isNotBlank()) {
-                "Search query '$searchQuery' se matching koi job nahi hai. Clear karke dubara dekhein."
+                "No jobs match '$searchQuery'. Try clearing the search or searching a different term."
               } else {
-                "Niche diye gaye '+ New Job' button par tap karke naya printing job add karein."
+                "Tap the '+ New Job' button below to add your first printing job."
               },
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -433,7 +442,7 @@ fun HomeScreen(
             if (searchQuery.isNotBlank()) {
               Spacer(modifier = Modifier.height(6.dp))
               TextButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                Text("Search Clear Karein")
+                Text("Clear Search")
               }
             }
           }
@@ -470,14 +479,16 @@ fun HomeScreen(
     AddEditJobDialog(
       initialJob = editingJob,
       onDismiss = { viewModel.closeAddEditSheet() },
-      onSave = { jobNumber, clientName, quantity, jobArrivedDate, isDieArrived, dieArrivedDate, isEmbossArrived, embossArrivedDate, isCompleted, paperDetails, notes, isUrgent ->
+      onSave = { jobNumber, clientName, quantity, jobArrivedDate, dieType, isDieArrived, dieArrivedDate, embossType, isEmbossArrived, embossArrivedDate, isCompleted, paperDetails, notes, isUrgent ->
         viewModel.saveJob(
           jobNumber = jobNumber,
           clientName = clientName,
           quantity = quantity,
           jobArrivedDate = jobArrivedDate,
+          dieType = dieType,
           isDieArrived = isDieArrived,
           dieArrivedDate = dieArrivedDate,
+          embossType = embossType,
           isEmbossArrived = isEmbossArrived,
           embossArrivedDate = embossArrivedDate,
           isCompleted = isCompleted,
@@ -513,7 +524,7 @@ fun HomeScreen(
     AlertDialog(
       onDismissRequest = { jobPendingDelete = null },
       title = { Text("Delete Job #${job.jobNumber}?") },
-      text = { Text("Kya aap sach me is job record ko delete karna chahte hain? Ye action undo nahi ho sakti.") },
+      text = { Text("Are you sure you want to delete this job record? This action cannot be undone.") },
       confirmButton = {
         TextButton(
           onClick = {
