@@ -115,7 +115,7 @@ fun HomeScreen(
   fun sharePendingJobsReport() {
     val pendingList = filteredJobs.filter { !it.isCompleted }
     val text = buildString {
-      appendLine("📢 *HIGH 5 PACKAGING - PENDING JOBS REPORT*")
+      appendLine("📢 *PRINTJOB TRACKER - PENDING JOBS REPORT*")
       appendLine("Date: ${DateUtils.formatDate(System.currentTimeMillis())}")
       appendLine("Total Pending: ${stats.pendingJobs} jobs")
       appendLine("-----------------------------")
@@ -167,18 +167,15 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
           ) {
-            Surface(
-              shape = RoundedCornerShape(8.dp),
-              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-              modifier = Modifier.size(width = 54.dp, height = 36.dp)
+            Box(
+              contentAlignment = Alignment.Center,
+              modifier = Modifier.size(width = 58.dp, height = 38.dp)
             ) {
-              Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(2.dp)) {
-                androidx.compose.foundation.Image(
-                  painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_high5_logo),
-                  contentDescription = "High 5 Packaging Logo",
-                  modifier = Modifier.fillMaxSize()
-                )
-              }
+              androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_high5_logo),
+                contentDescription = "High 5 Packaging Logo",
+                modifier = Modifier.fillMaxSize()
+              )
             }
             Column {
               Text(
@@ -186,7 +183,7 @@ fun HomeScreen(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
               )
               Text(
-                text = "Production & Job Log",
+                text = "Printing & Packaging Production Log",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
